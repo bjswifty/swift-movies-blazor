@@ -1,3 +1,6 @@
+@using Radzen
+@using Radzen.Blazor
+
 @page "/movies"
 @using System.Net.Http.Json
 @inject HttpClient Http
@@ -16,25 +19,17 @@ else if (!movies.Any())
 }
 else
 {
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Id</th>
-                <th>Title</th>
-                <th>Year</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var movie in movies)
-            {
-                <tr>
-                    <td>@movie.Id</td>
-                    <td>@movie.Title</td>
-                    <td>@movie.Year</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <RadzenDataGrid 
+        Data="@movies" 
+        TItem="Movie"
+        AllowSorting="true">
+        
+        <Columns>
+            <RadzenDataGridColumn TItem="Movie" Property="Id" Title="Id" />
+            <RadzenDataGridColumn TItem="Movie" Property="Title" Title="Title" />
+            <RadzenDataGridColumn TItem="Movie" Property="Year" Title="Year" />
+        </Columns>
+    </RadzenDataGrid>
 }
 
 @code {

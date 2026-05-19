@@ -1,5 +1,6 @@
 @using Radzen
 @using Radzen.Blazor
+@rendermode InteractiveServer
 
 @page "/movies"
 @using System.Net.Http.Json
@@ -7,7 +8,30 @@
 
 <PageTitle>Movies</PageTitle>
 
-<h1>Movies</h1>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="m-0">Movies</h1>
+    <button class="btn btn-primary" @onclick="ToggleAddForm">Add Movie</button>
+</div>
+
+@if (showAddForm)
+{
+    <div class="card mb-3 p-3">
+        <div class="row g-2">
+            <div class="col-md-6">
+                <label class="form-label">Title</label>
+                <input class="form-control" @bind="newMovie.Title" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Year</label>
+                <input type="number" class="form-control" @bind="newMovie.Year" />
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button class="btn btn-success me-2" @onclick="SaveMovieAsync" disabled="@isSaving">Save</button>
+                <button class="btn btn-secondary" @onclick="CancelAdd">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
 
 @if (movies is null)
 {
@@ -34,9 +58,62 @@ else
 
 @code {
     private List<Movie>? movies;
+    private Movie newMovie = new Movie();
+    private bool showAddForm = false;
+    private bool isSaving = false;
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadMovies();
+    }
+
+    private void ToggleAddForm()
+    {
+        showAddForm = !showAddForm;
+        if (showAddForm && newMovie == null)
+        {
+            newMovie = new Movie();
+        }
+    }
+
+    private void CancelAdd()
+    {
+        showAddForm = false;
+        newMovie = new Movie();
+    }
+
+    private async Task SaveMovieAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newMovie.Title))
+        {
+            return; // simple client-side guard
+        }
+
+        isSaving = true;
+        try
+        {
+            var payload = new { Title = newMovie.Title, Year = newMovie.Year };
+            var response = await Http.PostAsJsonAsync("http://localhost:5000/api/movie", payload);
+            if (response.IsSuccessStatusCode)
+            {
+                showAddForm = false;
+                newMovie = new Movie();
+                await LoadMovies();
+            }
+            else
+            {
+                // For beginners: you could display an error here.
+            }
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task LoadMovies()
+    {
         movies = await Http.GetFromJsonAsync<List<Movie>>("http://localhost:5000/api/movie");
+        StateHasChanged();
     }
 }

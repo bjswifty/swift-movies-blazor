@@ -1,0 +1,186 @@
+@using Radzen
+@using Radzen.Blazor
+@using swift_movies_blazor.Services
+@using swift_movies_blazor.DTOs
+@rendermode InteractiveServer
+
+@page "/movies"
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject MoviesService MoviesService
+@inject DialogService DialogService
+
+<PageTitle>Movies</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+
+    <h1 class="m-0">Movies</h1>
+
+    <div class="d-flex gap-2 align-items-center">
+
+        <RadzenTextBox @bind-Value="searchText" Placeholder="Search..." Change="@OnSearchChanged" Delay="300"
+                       Style="width:250px" />
+
+        <RadzenButton Text="Add Movie" Icon="add" ButtonStyle="ButtonStyle.Primary" Click="@ToggleAddForm" />
+
+    </div>
+
+</div>
+
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+    </div>
+}
+
+@if (showAddForm)
+{
+    <EditForm Model="@newMovieDto" OnValidSubmit="SaveMovieAsync">
+        <DataAnnotationsValidator />
+
+        <div class="card mb-3 p-3">
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <label class="form-label">Title</label>
+                    <InputText class="form-control" @bind-Value="newMovieDto.Title" />
+                    <ValidationMessage For="@(() => newMovieDto.Title)" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Year</label>
+                    <!-- <InputNumber class="form-control" @bind-Value="newMovieDto.Year" /> -->
+                    <RadzenNumeric @bind-Value="newMovieDto.Year" Style="width:100%" />
+                    <ValidationMessage For="@(() => newMovieDto.Year)" />
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-success me-2" type="submit" disabled="@isSaving">Save</button>
+                    <button class="btn btn-secondary" @onclick="CancelAdd">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </EditForm>
+}
+
+@if (movies is null)
+{
+    <p><em>Loading movies...</em></p>
+}
+else if (!movies.Any())
+{
+    <p>No movies found.</p>
+}
+else
+{
+    <RadzenDataGrid Data="@movies" TItem="Movie" AllowSorting="true">
+
+        <Columns>
+            <RadzenDataGridColumn TItem="Movie" Property="Id" Title="Id" />
+            <RadzenDataGridColumn TItem="Movie" Property="Title" Title="Title" />
+            <RadzenDataGridColumn TItem="Movie" Property="Year" Title="Year" />
+            <RadzenDataGridColumn TItem="Movie" Title="Actions">
+                <Template Context="movie">
+                    <RadzenButton Icon="delete" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Danger" class="ms-2"
+                                  Click="@(() => DeleteMovie(movie.Id))" />
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+}
+
+@code {
+    private List<Movie>? movies;
+    private NewMovieDTO newMovieDto = new NewMovieDTO();
+
+    private bool showAddForm = false;
+    private string? errorMessage;
+    private bool isSaving = false;
+    private string? searchText;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMovies();
+    }
+
+    private void ToggleAddForm()
+    {
+        showAddForm = !showAddForm;
+    }
+
+    private void CancelAdd()
+    {
+        showAddForm = false;
+        newMovieDto = new NewMovieDTO();
+        errorMessage = null;
+    }
+
+    private async Task SaveMovieAsync()
+    {
+        isSaving = true;
+        try
+        {
+            var payload = new NewMovieDTO { Title = newMovieDto.Title, Year = newMovieDto.Year };
+            var response = await MoviesService.AddMovieAsync(payload);
+
+            if (response.IsSuccessStatusCode)
+            {
+                showAddForm = false;
+                newMovieDto = new NewMovieDTO();
+                await LoadMovies();
+            }
+            else
+            {
+                errorMessage = $"Failed to save movie.  Status code: {response.StatusCode}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred while saving the movie: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task OnSearchChanged(object value)
+    {
+        searchText = value?.ToString();
+
+        movies = await MoviesService.GetMoviesAsync();
+
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            movies = movies
+                .Where(m => m.Title.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+    }
+
+    private async Task LoadMovies()
+    {
+        movies = await MoviesService.GetMoviesAsync();
+        StateHasChanged();
+    }
+    private async Task DeleteMovie(int id)
+    {
+        // TODO: Show confirmation dialog before deleting
+
+        try
+        {
+            var response = await MoviesService.DeleteMovieAsync(id);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadMovies();
+            }
+            else
+            {
+                errorMessage = $"Failed to delete movie. Status code: {response.StatusCode}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred while deleting the movie: {ex.Message}";
+        }
+    }
+}

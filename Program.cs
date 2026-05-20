@@ -1,4 +1,5 @@
 using swift_movies_blazor.Components;
+using swift_movies_blazor.Services;
 using Radzen;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,7 +10,10 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddHttpClient();
 
+builder.Services.AddScoped<MoviesService>();
+
 // Radzen services
+builder.Services.AddRadzenComponents();
 builder.Services.AddScoped<DialogService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<TooltipService>();
